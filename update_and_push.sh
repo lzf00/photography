@@ -1,8 +1,10 @@
 #!/bin/bash
 
 # Photography 图片更新一键推送脚本
-# 用法: ./update_and_push.sh [提交信息]
-# 如果不提供提交信息，将使用默认信息
+# 用法: 
+#   1. 把新图片放到 images/ 目录
+#   2. 运行 ./update_and_push.sh [提交信息]
+# 脚本会自动生成 fulls 和 thumbs 然后推送到 GitHub
 
 set -e
 
@@ -22,9 +24,32 @@ echo -e "${BLUE}  Photography 图片更新推送脚本${NC}"
 echo -e "${BLUE}=====================================${NC}"
 echo ""
 
+# 检查 images 根目录是否有新图片需要处理
+NEW_IMAGES=$(find images -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) 2>/dev/null)
+
+if [ -n "$NEW_IMAGES" ]; then
+    echo -e "${YELLOW}📷 发现新图片，正在生成 fulls 和 thumbs...${NC}"
+    
+    for img in $NEW_IMAGES; do
+        filename=$(basename "$img")
+        echo -e "  处理: ${BLUE}$filename${NC}"
+        
+        # 生成 fulls (1024px 宽)
+        sips -Z 1024 "$img" --out "images/fulls/$filename" >/dev/null 2>&1
+        
+        # 生成 thumbs (512px 宽)
+        sips -Z 512 "$img" --out "images/thumbs/$filename" >/dev/null 2>&1
+        
+        # 删除原图
+        rm "$img"
+    done
+    
+    echo -e "${GREEN}✅ 图片处理完成${NC}"
+    echo ""
+fi
+
 # 检查是否有更改
 echo -e "${YELLOW}📋 检查文件更改...${NC}"
-git status --short
 
 if [[ -z $(git status --porcelain) ]]; then
     echo -e "${GREEN}✅ 没有需要提交的更改${NC}"
@@ -32,12 +57,11 @@ if [[ -z $(git status --porcelain) ]]; then
 fi
 
 # 显示更改详情
-echo ""
 echo -e "${YELLOW}📁 更改的文件:${NC}"
 git status --short
+echo ""
 
 # 添加所有更改
-echo ""
 echo -e "${YELLOW}📦 添加所有更改...${NC}"
 git add --all
 
